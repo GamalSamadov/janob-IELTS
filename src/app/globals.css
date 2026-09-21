@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --bg: #f9f8f6;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #f2f0ec;
+  --bg-muted: #edeae4;
+  --bg-hover: rgb(28 25 20 / 0.05);
+  --border: #e5e1da;
+  --border-strong: #d2ccc2;
+  --fg: #1c1a17;
+  --fg-muted: #6a665f;
+  --fg-subtle: #9b968d;
+  --primary: #1c1a17;
+  --primary-fg: #f9f8f6;
+  --accent: #0d7a63;
+  --accent-soft: #e2f1eb;
+  --accent-fg: #ffffff;
+  --warn: #b45309;
+  --warn-soft: #fcf1e1;
+  --danger: #c2410c;
+  --danger-soft: #fdede5;
+  --bubble: #eeebe5;
+  --shadow-soft: 0 1px 2px rgb(28 25 20 / 0.04), 0 6px 20px rgb(28 25 20 / 0.06);
+}
+
+[data-theme="dark"] {
+  --bg: #1b1b19;
+  --bg-elevated: #242422;
+  --bg-sidebar: #141413;
+  --bg-muted: #2b2b28;
+  --bg-hover: rgb(255 255 255 / 0.055);
+  --border: #33322e;
+  --border-strong: #46443f;
+  --fg: #ecebe7;
+  --fg-muted: #a6a39b;
+  --fg-subtle: #75726b;
+  --primary: #ecebe7;
+  --primary-fg: #1b1b19;
+  --accent: #43c9a6;
+  --accent-soft: #173029;
+  --accent-fg: #0b1f1a;
+  --warn: #f5b454;
+  --warn-soft: #3a2d17;
+  --danger: #fb923c;
+  --danger-soft: #3a2117;
+  --bubble: #2d2d2a;
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.28);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-sidebar: var(--bg-sidebar);
+  --color-muted: var(--bg-muted);
+  --color-hover: var(--bg-hover);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-bubble: var(--bubble);
+  --shadow-soft: var(--shadow-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@theme {
+  --animate-fade-up: fade-up 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-blink: blink 1s steps(1) infinite;
+  --animate-breathe: breathe 3.2s ease-in-out infinite;
+  --animate-ripple: ripple 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  @keyframes breathe {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: scale(1.06);
+      opacity: 1;
+    }
+  }
+  @keyframes ripple {
+    from {
+      transform: scale(1);
+      opacity: 0.45;
+    }
+    to {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
