@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { Accent } from "@/lib/exam/types";
+import { chargeUsage } from "@/lib/server/billing/account";
 import { errorCode, errorStatus } from "@/lib/server/genai";
 import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
 import { synthesize, type SpeechAudio } from "@/lib/server/tts";
@@ -32,6 +33,9 @@ async function speak(userId: string, key: string, run: () => Promise<SpeechAudio
   try {
     const audio = await run();
     remember(key, audio);
+    // Playback is small next to a test, but it is Gemini usage all the same. Cache hits above
+    // never reach here, so a phrase is only ever charged once.
+    after(() => chargeUsage(userId, audio.tokens));
     return audioResponse(audio, cacheable);
   } catch (error) {
     const code = errorCode(error);

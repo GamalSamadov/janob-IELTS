@@ -20,6 +20,13 @@ export function formatDate(timestamp: number, lang: Lang): string {
   return `${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(date)}, ${time}`;
 }
 
+/** Same styling as `formatDate` but without the time, for renewal dates. */
+export function formatDay(timestamp: number, lang: Lang): string {
+  const date = new Date(timestamp);
+  if (lang === "uz") return `${date.getDate()}-${UZ_MONTHS[date.getMonth()]}`;
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(date);
+}
+
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }

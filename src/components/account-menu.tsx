@@ -2,7 +2,8 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/nextjs/types";
-import { ChevronsUpDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, Gauge, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Lang } from "@/lib/exam/types";
 import { useI18n } from "@/lib/i18n";
@@ -151,6 +152,18 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             </div>
           </div>
           <div className="my-1 h-px bg-line" />
+          <Link
+            href="/pricing"
+            onClick={(event) => {
+              if (!guard.confirmLeave()) return event.preventDefault();
+              guard.setActive(false);
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors hover:bg-hover"
+          >
+            <Gauge className="size-4 text-fg-muted" />
+            {t("viewPlans")}
+          </Link>
           <button
             type="button"
             onClick={logOut}

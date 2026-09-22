@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { ExamPart, TranscriptEntry } from "@/lib/exam/types";
+import { chargeUsage } from "@/lib/server/billing/account";
 import { evaluateTest, geminiAudioMime, type CandidateAudio } from "@/lib/server/evaluator";
 import { errorCode, errorStatus } from "@/lib/server/genai";
 import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await evaluateTest({
+    const { evaluation, verbatim, tokens } = await evaluateTest({
       audio,
       transcript,
       setup: { voice: voice.id, accent: setup.accent, mode: setup.mode },
@@ -83,7 +84,10 @@ export async function POST(request: Request) {
       candidateSpeechSec: Number(meta.candidateSpeechSec) || 0,
       feedbackLang: meta.feedbackLang === "en" ? "en" : "uz",
     });
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // The test is already scored, so the account is charged after the answer is on its way:
+    // running out of tokens must never cost the candidate their result.
+    after(() => chargeUsage(user.userId, tokens));
+    return NextResponse.json({ evaluation, verbatim }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const code = errorCode(error);
     console.error("[evaluate]", error);

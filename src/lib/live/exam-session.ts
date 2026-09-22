@@ -98,6 +98,15 @@ class CloseError extends Error {
 let entrySeq = 0;
 const nextId = () => `e${Date.now().toString(36)}${(entrySeq++).toString(36)}`;
 
+/** Identifies this test to the billing endpoints; reconnects keep reusing it. */
+const newExamId = () => `x${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+/** Total tokens in a Live usage report. */
+function usageTokens(usage: { totalTokenCount?: number } | undefined): number {
+  const total = usage?.totalTokenCount;
+  return typeof total === "number" && Number.isFinite(total) && total > 0 ? total : 0;
+}
+
 function parseDurationMs(value: string | undefined): number | null {
   const seconds = value ? parseFloat(value) : NaN;
   return Number.isFinite(seconds) ? seconds * 1000 : null;
@@ -109,7 +118,10 @@ function parseDurationMs(value: string | undefined): number | null {
  */
 export class ExamSession {
   info: LiveTokenResponse | null = null;
+  readonly examId = newExamId();
   readonly finished: Promise<ExamResult>;
+  /** Resolves once this test's token usage has been reported, so the meter can be refreshed. */
+  readonly usageSettled: Promise<void>;
 
   private snapshot: ExamSnapshot = {
     status: "connecting",
@@ -154,6 +166,15 @@ export class ExamSession {
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private shutdownStarted = false;
   private disposed = false;
+  /**
+   * The Live API reports usage as a running total for the connection, so the highest figure
+   * seen is what this connection cost; a reconnect starts a fresh count that adds to it.
+   */
+  private liveTokens = 0;
+  private connTokens = 0;
+  private usageReported = false;
+  private resolveUsageSettled!: () => void;
+  private onPageHide: (() => void) | null = null;
   private resolveFinished!: (result: ExamResult) => void;
   private partialResult: ExamResult | null = null;
 
@@ -176,6 +197,7 @@ export class ExamSession {
       this.checkIdle();
     };
     this.finished = new Promise((resolve) => (this.resolveFinished = resolve));
+    this.usageSettled = new Promise((resolve) => (this.resolveUsageSettled = resolve));
   }
 
   // ------------------------------------------------------------------ store
@@ -240,6 +262,9 @@ export class ExamSession {
     try {
       if (this.stopped) return this.releaseDevices();
       await this.fetchToken();
+      // From here on the server holds tokens for this test, so a closing tab still reports back.
+      this.onPageHide = () => this.reportUsage(true);
+      window.addEventListener("pagehide", this.onPageHide);
       await this.createClient();
 
       if (this.stopped) return this.releaseDevices();
@@ -308,6 +333,7 @@ export class ExamSession {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...this.setup,
+        examId: this.examId,
         lang: this.lang,
         localHour: new Date().getHours(),
         plan: this.info?.plan,
@@ -354,7 +380,12 @@ export class ExamSession {
       ready = true;
       const previous = this.session;
       this.session = session;
-      if (previous) this.safeSend(() => previous.close());
+      if (previous) {
+        this.safeSend(() => previous.close());
+        // The replaced connection is done counting; the new one starts from zero.
+        this.liveTokens += this.connTokens;
+        this.connTokens = 0;
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -414,6 +445,7 @@ export class ExamSession {
   // --------------------------------------------------------------- messages
 
   private onMessage(message: LiveServerMessage) {
+    this.connTokens = Math.max(this.connTokens, usageTokens(message.usageMetadata));
     const resumption = message.sessionResumptionUpdate;
     if (resumption?.resumable && resumption.newHandle) this.handle = resumption.newHandle;
     if (message.goAway) this.onGoAway(message.goAway.timeLeft);
@@ -651,6 +683,38 @@ export class ExamSession {
     }
   }
 
+  /**
+   * Tells the server what this test really cost, so the tokens held when the session token was
+   * issued can be settled. Sent once, with a beacon when the tab is going away. The server only
+   * treats the figure as a refinement — it clamps it against the session's real duration — so a
+   * report that never arrives is charged at the reserved amount instead.
+   */
+  private reportUsage(unloading = false) {
+    if (this.usageReported) return;
+    this.usageReported = true;
+    // No session token means no reservation was ever taken, so there is nothing to settle.
+    if (!this.info) return this.resolveUsageSettled();
+    if (this.onPageHide) {
+      window.removeEventListener("pagehide", this.onPageHide);
+      this.onPageHide = null;
+    }
+    const tokens = this.liveTokens + this.connTokens;
+    const body = JSON.stringify({ examId: this.examId, tokens: tokens || null });
+    if (unloading && navigator.sendBeacon?.("/api/exam/usage", new Blob([body], { type: "text/plain;charset=UTF-8" }))) {
+      return this.resolveUsageSettled();
+    }
+    void fetch("/api/exam/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    })
+      .catch(() => {
+        // The reservation covers it: nothing is lost by a failed report.
+      })
+      .finally(() => this.resolveUsageSettled());
+  }
+
   private later(fn: () => void, ms: number) {
     const timer = setTimeout(() => {
       this.timers.delete(timer);
@@ -685,6 +749,7 @@ export class ExamSession {
     this.connSeq++;
     this.safeSend(() => this.session?.close());
     this.session = null;
+    this.reportUsage();
     this.player.interrupt();
     this.releaseDevices();
     void this.ctx.close().catch(() => {});

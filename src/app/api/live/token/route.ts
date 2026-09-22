@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPlan, MODE_RULES, resolvePlan, summarizePlan } from "@/lib/exam/plan";
 import type { ExamMode, LiveTokenResponse } from "@/lib/exam/types";
 import { buildExaminerPrompt, buildLiveConfig, LOCKED_FIELDS } from "@/lib/server/examiner";
+import { reserveExam, settleExam } from "@/lib/server/billing/account";
 import { errorCode, errorStatus, getGenAI, MODELS } from "@/lib/server/genai";
 import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
 import { getVoice, isAccent } from "@/lib/voices";
@@ -21,11 +22,25 @@ export async function POST(request: Request) {
   const accent = body?.accent;
   const mode = body?.mode;
   const hour = Number(body?.localHour);
-  if (!voice || !isAccent(accent) || (mode !== "full" && mode !== "quick")) {
+  const examId = typeof body?.examId === "string" ? body.examId.slice(0, 64) : "";
+  if (!voice || !isAccent(accent) || (mode !== "full" && mode !== "quick") || !/^[\w-]{6,64}$/.test(examId)) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
   const examMode = mode as ExamMode;
   const localHour = Number.isInteger(hour) && hour >= 0 && hour < 24 ? hour : 12;
+
+  // Hold this test's expected cost before spending anything. A reconnect asks for a new token
+  // with the same exam id and reuses the hold, so one test is only ever charged once.
+  let reservation;
+  try {
+    reservation = await reserveExam(user.userId, examId, examMode);
+  } catch (error) {
+    console.error("[live/token] billing", error);
+    return NextResponse.json({ error: "billing_unavailable" }, { status: 503 });
+  }
+  if (!reservation.ok) {
+    return NextResponse.json({ error: "limit_reached", billing: reservation.snapshot }, { status: 402 });
+  }
 
   // Reconnects reuse the same plan so the examiner keeps the same topics.
   const requestedPlan = body?.plan;
@@ -68,6 +83,9 @@ export async function POST(request: Request) {
     };
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    // Nothing was spent, so release the hold this call took. On a reconnect the hold belongs
+    // to a session that is already running, so it has to stay.
+    if (!reservation.reused) await settleExam(user.userId, examId, 0).catch(() => {});
     const code = errorCode(error);
     console.error("[live/token]", error);
     return NextResponse.json({ error: code }, { status: errorStatus(code) });

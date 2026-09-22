@@ -2,6 +2,7 @@ import "server-only";
 import { ThinkingLevel } from "@google/genai";
 import { clampBand, CRITERIA, overallBand } from "@/lib/exam/scoring";
 import type { Evaluation, ExamSetup, Lang, TranscriptEntry } from "@/lib/exam/types";
+import { tokensFrom } from "./billing/usage";
 import { getGenAI, MODELS } from "./genai";
 
 export interface CandidateAudio {
@@ -29,7 +30,7 @@ export function geminiAudioMime(browserMime: string): string {
 }
 
 /** Verbatim speech-to-text of the candidate's recording (English with possible Uzbek code-switching). */
-export async function transcribeCandidate(audio: CandidateAudio): Promise<string | null> {
+export async function transcribeCandidate(audio: CandidateAudio): Promise<{ text: string | null; tokens: number }> {
   try {
     const interaction = await getGenAI().interactions.create({
       model: MODELS.transcribe,
@@ -39,11 +40,11 @@ export async function transcribeCandidate(audio: CandidateAudio): Promise<string
       },
       store: false,
     });
-    return interaction.output_text?.trim() || null;
+    return { text: interaction.output_text?.trim() || null, tokens: tokensFrom(interaction.usage) };
   } catch (error) {
     // The evaluator can still work from the audio and the live captions.
     console.warn("[evaluate] transcription failed:", error);
-    return null;
+    return { text: null, tokens: 0 };
   }
 }
 
@@ -248,8 +249,13 @@ function normalize(raw: Raw, input: EvaluateInput, transcribed: boolean): Evalua
   };
 }
 
-export async function evaluateTest(input: EvaluateInput): Promise<{ evaluation: Evaluation; verbatim: string | null }> {
-  const verbatim = input.audio ? await transcribeCandidate(input.audio) : null;
+/** `tokens` is what this assessment spent, for the caller to charge to the account. */
+export async function evaluateTest(
+  input: EvaluateInput,
+): Promise<{ evaluation: Evaluation; verbatim: string | null; tokens: number }> {
+  const transcription = input.audio ? await transcribeCandidate(input.audio) : { text: null, tokens: 0 };
+  const verbatim = transcription.text;
+  let tokens = transcription.tokens;
   const parts = [
     ...(input.audio ? [{ inlineData: { mimeType: input.audio.mimeType, data: input.audio.base64 } }] : []),
     { text: buildUserPrompt(input, verbatim) },
@@ -268,8 +274,9 @@ export async function evaluateTest(input: EvaluateInput): Promise<{ evaluation: 
           thinkingConfig: { thinkingLevel: attempt === 0 ? ThinkingLevel.HIGH : ThinkingLevel.MEDIUM },
         },
       });
+      tokens += tokensFrom(response.usageMetadata);
       const raw = JSON.parse(response.text ?? "") as Raw;
-      return { evaluation: normalize(raw, input, verbatim !== null), verbatim };
+      return { evaluation: normalize(raw, input, verbatim !== null), verbatim, tokens };
     } catch (error) {
       // Retry only malformed output or server-side hiccups, not configuration/auth problems.
       const status = (error as { status?: number })?.status ?? 0;

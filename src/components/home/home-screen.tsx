@@ -3,6 +3,7 @@
 import { CircleAlert, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { refreshBilling, useBilling } from "@/lib/billing/client";
 import type { ExamSetup, Lang, SessionRecord } from "@/lib/exam/types";
 import { useI18n } from "@/lib/i18n";
 import type { DictKey } from "@/lib/i18n-dict";
@@ -10,6 +11,7 @@ import { ExamSession, type ExamResult } from "@/lib/live/exam-session";
 import { sessionStore } from "@/lib/storage";
 import { countWords } from "@/lib/utils";
 import { DEFAULT_VOICE_ID, getVoice, isAccent } from "@/lib/voices";
+import { LimitCard } from "../billing/limit-card";
 import { NEW_TEST_EVENT, useExamGuard } from "../exam-guard";
 import { ExamScreen } from "../exam/exam-screen";
 import { EvaluatingScreen } from "./evaluating-screen";
@@ -119,8 +121,11 @@ export function HomeScreen() {
   const router = useRouter();
   const guard = useExamGuard();
   const stored = useStoredSetup();
+  const { billing } = useBilling();
   const [override, setOverride] = useState<Partial<ExamSetup>>({});
   const setup: ExamSetup = { ...DEFAULT_SETUP, ...stored, ...override };
+  // The server decides for real when the token is issued; this only keeps the UI honest.
+  const outOfTokens = Boolean(billing && !billing.canStart[setup.mode]);
   const [stage, setStage] = useState<Stage>({ kind: "setup" });
   const sessionRef = useRef<ExamSession | null>(null);
 
@@ -143,6 +148,8 @@ export function HomeScreen() {
 
   const evaluate = async (result: ExamResult, session: ExamSession) => {
     guard.setActive(false);
+    // The live session has been settled by now; the assessment is charged when it returns.
+    void session.usageSettled.then(() => refreshBilling());
     if (candidateWords(result) < 12) {
       setStage({ kind: "failed", code: "no_speech", retry: () => start(session.setup) });
       return;
@@ -151,6 +158,7 @@ export function HomeScreen() {
     try {
       const record = await submitForEvaluation(result, session);
       sessionRef.current = null;
+      void refreshBilling();
       router.push(`/s/${record.id}`);
     } catch (error) {
       const code = error instanceof EvaluationError ? error.message : "eval_failed";
@@ -159,6 +167,7 @@ export function HomeScreen() {
   };
 
   const start = (examSetup: ExamSetup) => {
+    if (outOfTokens) return;
     disposeSession();
     try {
       localStorage.setItem(SETUP_KEY, JSON.stringify(examSetup));
@@ -170,15 +179,25 @@ export function HomeScreen() {
     sessionRef.current = session;
     guard.setActive(true);
     setStage({ kind: "exam", session });
-    void session.start();
+    void session.start().then(() => {
+      // The allowance ran out between loading the page and pressing start: show the plans
+      // rather than an exam screen with an error the candidate cannot retry out of.
+      const snap = session.getSnapshot();
+      if (snap.error !== "limit_reached" || sessionRef.current !== session) return;
+      guard.setActive(false);
+      void refreshBilling();
+      setStage({ kind: "failed", code: "limit_reached", retry: () => start(examSetup) });
+    });
     void session.finished.then((result) => {
       if (sessionRef.current === session) void evaluate(result, session);
     });
   };
 
   const exit = () => {
+    const session = sessionRef.current;
     disposeSession();
     guard.setActive(false);
+    void (session?.usageSettled ?? Promise.resolve()).then(() => refreshBilling());
     setStage({ kind: "setup" });
   };
 
@@ -195,6 +214,10 @@ export function HomeScreen() {
   }
 
   if (stage.kind === "evaluating") return <EvaluatingScreen />;
+
+  if (stage.kind === "failed" && stage.code === "limit_reached") {
+    return <LimitCard className="flex h-full items-center justify-center px-4" />;
+  }
 
   if (stage.kind === "failed") {
     const key = `err_${stage.code}` as DictKey;
@@ -225,6 +248,7 @@ export function HomeScreen() {
   return (
     <SetupScreen
       setup={setup}
+      outOfTokens={outOfTokens}
       onChange={(patch) => setOverride((current) => ({ ...current, ...patch }))}
       onStart={() => start(setup)}
     />

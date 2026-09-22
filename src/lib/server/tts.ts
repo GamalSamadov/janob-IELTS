@@ -1,5 +1,6 @@
 import "server-only";
 import type { Accent } from "@/lib/exam/types";
+import { tokensFrom } from "./billing/usage";
 import { getGenAI, MODELS } from "./genai";
 
 const ACCENT_NAME: Record<Accent, string> = {
@@ -29,6 +30,8 @@ function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
 export interface SpeechAudio {
   data: Buffer;
   mimeType: string;
+  /** Tokens this synthesis spent; 0 when the API reported none. */
+  tokens: number;
 }
 
 async function generate(input: string, voice: string) {
@@ -39,29 +42,30 @@ async function generate(input: string, voice: string) {
     generation_config: { speech_config: [{ voice }] },
     store: false,
   });
-  return interaction.output_audio;
+  return { audio: interaction.output_audio, tokens: tokensFrom(interaction.usage) };
 }
 
 /** Gemini TTS. Raw PCM output is wrapped into WAV so browsers can play it directly. */
 export async function synthesize(opts: { text: string; voice: string; accent: Accent; style: string }): Promise<SpeechAudio> {
-  let out;
+  let result;
   try {
-    out = await generate(`Say in ${ACCENT_NAME[opts.accent]}, ${opts.style}: ${opts.text}`, opts.voice);
+    result = await generate(`Say in ${ACCENT_NAME[opts.accent]}, ${opts.style}: ${opts.text}`, opts.voice);
   } catch (error) {
     // The TTS model occasionally aborts a stream ("audio stream could not be completed");
     // a retry with a plainer instruction usually succeeds.
     const status = (error as { status?: number })?.status ?? 0;
     if (status === 401 || status === 403 || status === 429) throw error;
     console.warn("[tts] retrying after:", (error as Error).message?.slice(0, 120));
-    out = await generate(`Read aloud in ${ACCENT_NAME[opts.accent]}: ${opts.text}`, opts.voice);
+    result = await generate(`Read aloud in ${ACCENT_NAME[opts.accent]}: ${opts.text}`, opts.voice);
   }
 
+  const out = result.audio;
   if (!out?.data) throw new Error("TTS returned no audio");
   const bytes = Buffer.from(out.data, "base64");
   const mime = (out.mime_type ?? "").toLowerCase();
-  if (mime.includes("wav")) return { data: bytes, mimeType: "audio/wav" };
+  if (mime.includes("wav")) return { data: bytes, mimeType: "audio/wav", tokens: result.tokens };
 
   // "audio/l16; rate=24000": despite the MIME type, the samples are little-endian (verified).
   const rate = out.sample_rate || Number(/rate=(\d+)/.exec(mime)?.[1]) || 24000;
-  return { data: pcmToWav(bytes, rate), mimeType: "audio/wav" };
+  return { data: pcmToWav(bytes, rate), mimeType: "audio/wav", tokens: result.tokens };
 }

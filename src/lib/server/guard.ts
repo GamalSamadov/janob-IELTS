@@ -41,3 +41,12 @@ export function isSameOrigin(request: Request): boolean {
     return false;
   }
 }
+
+/** Absolute origin of this deployment, for URLs handed to Stripe to redirect back to. */
+export function siteOrigin(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  if (configured) return configured.replace(/\/+$/, "");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  return host ? `${proto}://${host}` : new URL(request.url).origin;
+}

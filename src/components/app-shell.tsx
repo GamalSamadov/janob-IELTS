@@ -3,6 +3,7 @@
 import { Menu, SquarePen } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { setBillingOwner } from "@/lib/billing/client";
 import { useI18n } from "@/lib/i18n";
 import { setHistoryOwner } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { Sidebar } from "./sidebar";
 
 export function AppShell({ userId, children }: { userId: string; children: ReactNode }) {
   setHistoryOwner(userId);
+  setBillingOwner(userId);
   const { t } = useI18n();
   const guard = useExamGuard();
   const [collapsed, setCollapsed] = useState(false);

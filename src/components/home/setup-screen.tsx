@@ -6,15 +6,19 @@ import type { Accent, ExamMode, ExamSetup } from "@/lib/exam/types";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { ACCENTS, VOICES } from "@/lib/voices";
+import { LimitCard } from "../billing/limit-card";
 import { ExaminerAvatar, Segmented, Spinner } from "../ui/primitives";
 import { SpeechError, useSpeechPlayer } from "../ui/use-speech";
 
 export function SetupScreen({
   setup,
+  outOfTokens = false,
   onChange,
   onStart,
 }: {
   setup: ExamSetup;
+  /** The allowance no longer covers a test of this format. */
+  outOfTokens?: boolean;
   onChange: (patch: Partial<ExamSetup>) => void;
   onStart: () => void;
 }) {
@@ -138,19 +142,25 @@ export function SetupScreen({
         </section>
 
         <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-col items-center gap-3 bg-gradient-to-t from-bg from-60% to-transparent px-4 pb-4 pt-6 animate-fade-up [animation-delay:180ms] sm:static sm:mx-0 sm:bg-none sm:p-0">
-          <button
-            type="button"
-            onClick={start}
-            className="group inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-fg shadow-soft transition-transform hover:scale-[1.02] active:scale-[0.99]"
-          >
-            <Mic className="size-[18px]" />
-            {t("start")}
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-          </button>
-          <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
-            <Headphones className="size-3.5" />
-            {t("startHint")}
-          </p>
+          {outOfTokens ? (
+            <LimitCard className="w-full" />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={start}
+                className="group inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-fg shadow-soft transition-transform hover:scale-[1.02] active:scale-[0.99]"
+              >
+                <Mic className="size-[18px]" />
+                {t("start")}
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </button>
+              <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
+                <Headphones className="size-3.5" />
+                {t("startHint")}
+              </p>
+            </>
+          )}
         </div>
 
         <ul className="mt-12 grid gap-3 border-t border-line pt-6 text-[13px] leading-5 text-fg-muted animate-fade-up [animation-delay:240ms] sm:grid-cols-3">

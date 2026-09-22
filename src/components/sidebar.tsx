@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { sessionStore, useSessions } from "@/lib/storage";
 import { cn, formatDate } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
+import { UsageMeter } from "./billing/usage-meter";
 import { NEW_TEST_EVENT, useExamGuard } from "./exam-guard";
 import { Logo } from "./logo";
 
@@ -85,7 +86,8 @@ export function Sidebar({
         >
           <SquarePen className="size-[18px]" />
         </Link>
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col items-center gap-1">
+          <UsageMeter compact />
           <AccountMenu compact />
         </div>
       </div>
@@ -159,7 +161,8 @@ export function Sidebar({
         )}
       </nav>
 
-      <div className="border-t border-line p-2">
+      <div className="space-y-1 border-t border-line p-2">
+        <UsageMeter />
         <AccountMenu />
       </div>
     </div>

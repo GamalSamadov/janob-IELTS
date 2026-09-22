@@ -2,6 +2,8 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { safeRedirect } from "@/lib/utils";
 
+const WEBHOOK_PATH = "/api/billing/webhook";
+
 const within = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
 
 /**
@@ -21,6 +23,8 @@ export default clerkMiddleware(async (auth, request) => {
   }
   if (isAuthenticated) return;
 
+  // Stripe calls the webhook server-to-server: it carries a signature instead of a session.
+  if (pathname === WEBHOOK_PATH) return;
   if (within(pathname, "/api")) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const login = new URL("/login", request.url);
   if (pathname !== "/") login.searchParams.set("next", pathname + search);
