@@ -56,6 +56,23 @@ export function refreshBilling(): Promise<BillingSnapshot | null> {
   return inFlight;
 }
 
+/**
+ * Asks the server to re-read the subscription from Stripe rather than trusting what is stored.
+ * Used when returning from Checkout, so a new plan shows up even if the webhook is late or
+ * never arrives. Falls back to a plain read if the sync itself fails.
+ */
+export async function syncBilling(): Promise<BillingSnapshot | null> {
+  try {
+    const response = await fetch("/api/billing/sync", { method: "POST" });
+    if (!response.ok) throw new Error(String(response.status));
+    const snapshot = (await response.json()) as BillingSnapshot;
+    set({ billing: snapshot, failed: false });
+    return snapshot;
+  } catch {
+    return refreshBilling();
+  }
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (!state.billing && !inFlight) void refreshBilling();

@@ -198,6 +198,8 @@ const en = {
   checkoutSuccess: "Thank you! Your subscription is active.",
   checkoutPending: "Payment received — activating your plan…",
   checkoutCancelled: "Checkout was cancelled. You were not charged.",
+  checkoutStuck:
+    "Your payment went through, but the plan has not activated yet. Reload this page in a minute — if it still says this, write to us and we will sort it out.",
   cancelNotice: "Your plan ends on {date} and will not renew.",
   pastDueNotice: "Your last payment did not go through. Update your card to keep your plan.",
   billingDisabled: "Payments are not connected yet. Ask the site owner to finish the Stripe setup.",
@@ -423,6 +425,8 @@ const uz: Dict = {
   checkoutSuccess: "Rahmat! Obunangiz faollashdi.",
   checkoutPending: "To‘lov qabul qilindi — tarif faollashtirilmoqda…",
   checkoutCancelled: "To‘lov bekor qilindi. Hisobingizdan pul yechilmadi.",
+  checkoutStuck:
+    "To‘lovingiz o‘tdi, lekin tarif hali faollashmadi. Bir daqiqadan so‘ng sahifani yangilang — agar shu holat qolsa, bizga yozing, hal qilamiz.",
   cancelNotice: "Tarifingiz {date} da tugaydi va yangilanmaydi.",
   pastDueNotice: "Oxirgi to‘lov amalga oshmadi. Tarifni saqlab qolish uchun kartani yangilang.",
   billingDisabled: "To‘lov tizimi hali ulanmagan. Sayt egasidan Stripe sozlamalarini yakunlashni so‘rang.",

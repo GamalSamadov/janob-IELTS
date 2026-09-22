@@ -3,7 +3,7 @@
 import { Check, CircleAlert, ExternalLink, Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { formatTokens, refreshBilling, useBilling, usedShare } from "@/lib/billing/client";
+import { formatTokens, syncBilling, useBilling, usedShare } from "@/lib/billing/client";
 import { approxTests, getPlan, isPlanId, PLANS, TOKENS_PER_TEST, type Plan, type PlanId } from "@/lib/billing/plans";
 import { useI18n } from "@/lib/i18n";
 import type { DictKey } from "@/lib/i18n-dict";
@@ -11,8 +11,12 @@ import { cn, formatDay } from "@/lib/utils";
 import { Spinner } from "../ui/primitives";
 import { PLAN_LABEL } from "./usage-meter";
 
-/** How long to keep asking for the subscription after checkout, while the webhook lands. */
-const ACTIVATION_ATTEMPTS = 12;
+/**
+ * How long to keep asking Stripe for the new subscription after checkout. Stripe knows about it
+ * the moment the payment goes through, so the first attempt almost always succeeds; the retries
+ * are only there for a slow round trip.
+ */
+const ACTIVATION_ATTEMPTS = 5;
 const ACTIVATION_DELAY_MS = 2000;
 
 function Banner({ tone, children }: { tone: "ok" | "warn"; children: React.ReactNode }) {
@@ -41,21 +45,27 @@ export function PlansScreen() {
   const boughtPlan = isPlanId(params.get("plan")) ? (params.get("plan") as PlanId) : null;
   const [busy, setBusy] = useState<PlanId | "portal" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activating, setActivating] = useState(checkout === "success");
+  const [activation, setActivation] = useState<"idle" | "pending" | "done" | "failed">(
+    checkout === "success" ? "pending" : "idle",
+  );
 
-  // Coming back from Stripe, the subscription only becomes visible once the webhook has been
-  // processed, so poll until the new plan shows up rather than claiming nothing happened.
+  // Coming back from Stripe, read the subscription from Stripe itself instead of waiting for
+  // its webhook: the payment has already happened, and the plan should be there by the time the
+  // page settles. If it never shows up, say so rather than congratulating the customer.
   useEffect(() => {
     if (checkout !== "success") return;
     let cancelled = false;
     void (async () => {
       for (let attempt = 0; attempt < ACTIVATION_ATTEMPTS && !cancelled; attempt++) {
-        const snapshot = await refreshBilling();
+        const snapshot = await syncBilling();
         if (cancelled) return;
-        if (snapshot && (!boughtPlan || snapshot.plan === boughtPlan)) break;
+        if (snapshot && (!boughtPlan || snapshot.plan === boughtPlan)) {
+          setActivation("done");
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, ACTIVATION_DELAY_MS));
       }
-      if (!cancelled) setActivating(false);
+      if (!cancelled) setActivation("failed");
     })();
     return () => {
       cancelled = true;
@@ -97,9 +107,12 @@ export function PlansScreen() {
           </p>
         </header>
 
-        {checkout === "success" && (
-          <Banner tone="ok">{activating ? t("checkoutPending") : t("checkoutSuccess")}</Banner>
-        )}
+        {checkout === "success" &&
+          (activation === "failed" ? (
+            <Banner tone="warn">{t("checkoutStuck")}</Banner>
+          ) : (
+            <Banner tone="ok">{activation === "pending" ? t("checkoutPending") : t("checkoutSuccess")}</Banner>
+          ))}
         {checkout === "cancelled" && <Banner tone="warn">{t("checkoutCancelled")}</Banner>}
         {billing?.status === "past_due" && <Banner tone="warn">{t("pastDueNotice")}</Banner>}
         {billing?.cancelAtPeriodEnd && renewsAt && (
