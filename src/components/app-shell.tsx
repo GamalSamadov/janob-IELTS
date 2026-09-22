@@ -4,12 +4,14 @@ import { Menu, SquarePen } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n";
+import { setHistoryOwner } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { NEW_TEST_EVENT, useExamGuard } from "./exam-guard";
 import { Logo } from "./logo";
 import { Sidebar } from "./sidebar";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ userId, children }: { userId: string; children: ReactNode }) {
+  setHistoryOwner(userId);
   const { t } = useI18n();
   const guard = useExamGuard();
   const [collapsed, setCollapsed] = useState(false);

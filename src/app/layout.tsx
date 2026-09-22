@@ -1,8 +1,7 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { cookies } from "next/headers";
-import { AppShell } from "@/components/app-shell";
-import { ExamGuardProvider } from "@/components/exam-guard";
 import { LANG_COOKIE, THEME_SCRIPT } from "@/lib/constants";
 import { I18nProvider } from "@/lib/i18n";
 import "./globals.css";
@@ -43,11 +42,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        <I18nProvider initialLang={lang}>
-          <ExamGuardProvider>
-            <AppShell>{children}</AppShell>
-          </ExamGuardProvider>
-        </I18nProvider>
+        <ClerkProvider signInUrl="/login" signUpUrl="/login" afterSignOutUrl="/login">
+          <I18nProvider initialLang={lang}>{children}</I18nProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

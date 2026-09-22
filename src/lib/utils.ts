@@ -23,3 +23,9 @@ export function formatDate(timestamp: number, lang: Lang): string {
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
+
+/** Where to go after signing in: only paths on this site, never back to the login screen. */
+export function safeRedirect(value: string | null | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
+  return value === "/login" || value.startsWith("/login/") || value.startsWith("/login?") ? "/" : value;
+}

@@ -1,18 +1,16 @@
 "use client";
 
-import { Monitor, Moon, PanelLeftClose, PanelLeftOpen, SquarePen, Sun, Trash2 } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, SquarePen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 import { formatBand } from "@/lib/exam/scoring";
-import type { Lang } from "@/lib/exam/types";
 import { useI18n } from "@/lib/i18n";
 import { sessionStore, useSessions } from "@/lib/storage";
-import { setThemePref, useThemePref, type ThemePref } from "@/lib/theme";
 import { cn, formatDate } from "@/lib/utils";
+import { AccountMenu } from "./account-menu";
 import { NEW_TEST_EVENT, useExamGuard } from "./exam-guard";
 import { Logo } from "./logo";
-import { Segmented } from "./ui/primitives";
 
 function IconButton({
   label,
@@ -50,12 +48,11 @@ export function Sidebar({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const sessions = useSessions();
   const pathname = usePathname();
   const router = useRouter();
   const guard = useExamGuard();
-  const theme = useThemePref();
 
   const navigate = (event: MouseEvent, href: string) => {
     if (!guard.confirmLeave()) {
@@ -88,6 +85,9 @@ export function Sidebar({
         >
           <SquarePen className="size-[18px]" />
         </Link>
+        <div className="mt-auto">
+          <AccountMenu compact />
+        </div>
       </div>
     );
   }
@@ -159,28 +159,8 @@ export function Sidebar({
         )}
       </nav>
 
-      <div className="space-y-2.5 border-t border-line p-3">
-        <Segmented<Lang>
-          size="sm"
-          label={t("language")}
-          value={lang}
-          onChange={setLang}
-          options={[
-            { value: "uz", label: "O‘zbekcha" },
-            { value: "en", label: "English" },
-          ]}
-        />
-        <Segmented<ThemePref>
-          size="sm"
-          label={t("theme")}
-          value={theme}
-          onChange={setThemePref}
-          options={[
-            { value: "light", label: <Sun className="my-0.5 size-3.5" />, title: t("themeLight") },
-            { value: "dark", label: <Moon className="my-0.5 size-3.5" />, title: t("themeDark") },
-            { value: "system", label: <Monitor className="my-0.5 size-3.5" />, title: t("themeSystem") },
-          ]}
-        />
+      <div className="border-t border-line p-2">
+        <AccountMenu />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Accent } from "@/lib/exam/types";
 import { errorCode, errorStatus } from "@/lib/server/genai";
-import { clientIp, isSameOrigin, rateLimit } from "@/lib/server/guard";
+import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
 import { synthesize, type SpeechAudio } from "@/lib/server/tts";
 import { getVoice, isAccent } from "@/lib/voices";
 
@@ -23,10 +23,10 @@ function audioResponse(audio: SpeechAudio, cacheable: boolean) {
   });
 }
 
-async function speak(request: Request, key: string, run: () => Promise<SpeechAudio>, cacheable: boolean) {
+async function speak(userId: string, key: string, run: () => Promise<SpeechAudio>, cacheable: boolean) {
   const hit = cache.get(key);
   if (hit) return audioResponse(hit, cacheable);
-  if (!rateLimit(`tts:${clientIp(request)}`, 40, 10 * 60_000)) {
+  if (!rateLimit(`tts:${userId}`, 40, 10 * 60_000)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
   try {
@@ -42,6 +42,8 @@ async function speak(request: Request, key: string, run: () => Promise<SpeechAud
 
 /** Voice preview for the examiner picker: GET /api/tts?voice=Kore&accent=british */
 export async function GET(request: Request) {
+  const user = await requireUser();
+  if ("response" in user) return user.response;
   const params = new URL(request.url).searchParams;
   const voice = getVoice(params.get("voice"));
   const accent = params.get("accent") ?? "british";
@@ -49,7 +51,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
   return speak(
-    request,
+    user.userId,
     `preview:${voice.id}:${accent}`,
     () =>
       synthesize({
@@ -64,6 +66,8 @@ export async function GET(request: Request) {
 
 /** Reads a model answer aloud: POST /api/tts { text, voice, accent } */
 export async function POST(request: Request) {
+  const user = await requireUser();
+  if ("response" in user) return user.response;
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -75,7 +79,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
   return speak(
-    request,
+    user.userId,
     `answer:${voice.id}:${accent}:${text}`,
     () =>
       synthesize({

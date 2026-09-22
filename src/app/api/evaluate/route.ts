@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { ExamPart, TranscriptEntry } from "@/lib/exam/types";
 import { evaluateTest, geminiAudioMime, type CandidateAudio } from "@/lib/server/evaluator";
 import { errorCode, errorStatus } from "@/lib/server/genai";
-import { clientIp, isSameOrigin, rateLimit } from "@/lib/server/guard";
+import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
 import { getVoice, isAccent } from "@/lib/voices";
 
 // Transcription + a high-thinking assessment of up to ~15 minutes of audio.
@@ -32,10 +32,12 @@ function parseTranscript(value: unknown): TranscriptEntry[] {
 }
 
 export async function POST(request: Request) {
+  const user = await requireUser();
+  if ("response" in user) return user.response;
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (!rateLimit(`evaluate:${clientIp(request)}`, 10, 10 * 60_000)) {
+  if (!rateLimit(`evaluate:${user.userId}`, 10, 10 * 60_000)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 

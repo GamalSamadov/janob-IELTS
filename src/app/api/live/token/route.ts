@@ -3,14 +3,16 @@ import { createPlan, MODE_RULES, resolvePlan, summarizePlan } from "@/lib/exam/p
 import type { ExamMode, LiveTokenResponse } from "@/lib/exam/types";
 import { buildExaminerPrompt, buildLiveConfig, LOCKED_FIELDS } from "@/lib/server/examiner";
 import { errorCode, errorStatus, getGenAI, MODELS } from "@/lib/server/genai";
-import { clientIp, isSameOrigin, rateLimit } from "@/lib/server/guard";
+import { isSameOrigin, rateLimit, requireUser } from "@/lib/server/guard";
 import { getVoice, isAccent } from "@/lib/voices";
 
 export async function POST(request: Request) {
+  const user = await requireUser();
+  if ("response" in user) return user.response;
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (!rateLimit(`token:${clientIp(request)}`, 12, 10 * 60_000)) {
+  if (!rateLimit(`token:${user.userId}`, 12, 10 * 60_000)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 

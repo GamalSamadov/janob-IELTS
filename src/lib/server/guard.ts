@@ -1,9 +1,17 @@
 import "server-only";
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 /**
- * Best-effort, per-instance protection for the endpoints that spend API quota.
- * For a public deployment, put real authentication in front of these routes.
+ * The signed-in user's id, or a 401 response to return. The proxy already rejects anonymous
+ * API calls; checking again here keeps every quota-spending route safe on its own.
  */
+export async function requireUser(): Promise<{ userId: string } | { response: NextResponse }> {
+  const { userId } = await auth();
+  return userId ? { userId } : { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
+}
+
+/** Best-effort, per-instance limits for the endpoints that spend API quota. */
 const buckets = new Map<string, number[]>();
 
 export function rateLimit(key: string, limit: number, windowMs: number): boolean {
@@ -19,11 +27,6 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
     for (const [k, v] of buckets) if (v.every((t) => now - t >= windowMs)) buckets.delete(k);
   }
   return true;
-}
-
-export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "local";
 }
 
 /** Rejects cross-site browser requests; same-origin fetches and server-to-server calls pass. */
