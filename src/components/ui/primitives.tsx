@@ -34,13 +34,14 @@ export function Segmented<T extends string>({
   size = "md",
 }: {
   value: T;
-  options: { value: T; label: ReactNode; hint?: ReactNode; title?: string }[];
+  /** `leading` sits above the label (a flag, an icon); `hint` is the small line under it. */
+  options: { value: T; label: ReactNode; hint?: ReactNode; leading?: ReactNode; title?: string }[];
   onChange: (value: T) => void;
   label: string;
   size?: "sm" | "md";
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex w-full rounded-xl bg-muted p-1">
+    <div role="radiogroup" aria-label={label} className="inline-flex w-full gap-1 rounded-xl bg-muted p-1">
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -51,14 +52,19 @@ export function Segmented<T extends string>({
             aria-checked={active}
             title={option.title}
             onClick={() => onChange(option.value)}
+            // Every option keeps the same height whether or not it has a leading mark or a
+            // hint, so two groups side by side line up instead of drifting apart.
             className={cn(
-              "flex flex-1 flex-col items-center justify-center rounded-[9px] transition-all",
-              size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm",
-              active ? "bg-elevated text-fg shadow-soft" : "text-fg-muted hover:text-fg",
+              "flex min-w-0 flex-1 flex-col items-center justify-center rounded-[9px] text-center transition-colors",
+              size === "sm" ? "min-h-8 px-2 py-1 text-xs" : "min-h-[54px] px-2 py-1.5 text-[13px] sm:text-sm",
+              active
+                ? "bg-elevated text-fg shadow-soft ring-1 ring-inset ring-line-strong/70"
+                : "text-fg-muted hover:bg-hover/60 hover:text-fg",
             )}
           >
-            <span className="font-medium">{option.label}</span>
-            {option.hint && <span className="mt-0.5 text-[11px] text-fg-subtle">{option.hint}</span>}
+            {option.leading && <span className="mb-1 text-[16px] leading-none">{option.leading}</span>}
+            <span className="w-full truncate font-medium leading-tight">{option.label}</span>
+            {option.hint && <span className="mt-0.5 w-full truncate text-[11px] text-fg-subtle">{option.hint}</span>}
           </button>
         );
       })}

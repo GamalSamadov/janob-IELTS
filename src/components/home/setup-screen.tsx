@@ -116,7 +116,7 @@ export function SetupScreen({
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 animate-fade-up [animation-delay:120ms] sm:grid-cols-[1.35fr_1fr]">
+        <section className="mt-6 grid gap-4 animate-fade-up [animation-delay:120ms] sm:grid-cols-2">
           <div>
             <div className="mb-2 text-sm font-medium">{t("format")}</div>
             <Segmented<ExamMode>
@@ -138,12 +138,12 @@ export function SetupScreen({
                 speech.stop();
                 onChange({ accent });
               }}
-              options={ACCENTS.map((a) => ({ value: a, label: t(`accent_${a}`), hint: flag(a) }))}
+              options={ACCENTS.map((a) => ({ value: a, label: t(`accent_${a}`), leading: flag(a) }))}
             />
           </div>
         </section>
 
-        <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-col items-center gap-2 border-t border-line bg-bg/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm animate-fade-up [animation-delay:180ms] sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <div className="order-2 sticky bottom-0 z-10 -mx-4 mt-8 sm:order-none flex flex-col items-center gap-2 border-t border-line bg-bg/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm animate-fade-up [animation-delay:180ms] sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
           {outOfTokens ? (
             <LimitCard className="w-full" />
           ) : (
@@ -165,7 +165,7 @@ export function SetupScreen({
           )}
         </div>
 
-        <ul className="mt-12 grid gap-3 border-t border-line pt-6 text-[13px] leading-5 text-fg-muted animate-fade-up [animation-delay:240ms] sm:grid-cols-3">
+        <ul className="order-1 mt-10 grid gap-3 border-t border-line pt-6 text-[13px] leading-5 text-fg-muted animate-fade-up [animation-delay:240ms] sm:order-none sm:mt-12 sm:grid-cols-3">
           {[
             { icon: Mic, text: t("how1") },
             { icon: Languages, text: t("how2") },
