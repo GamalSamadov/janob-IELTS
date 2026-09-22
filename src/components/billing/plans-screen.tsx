@@ -19,11 +19,20 @@ import { PLAN_LABEL } from "./usage-meter";
 const ACTIVATION_ATTEMPTS = 5;
 const ACTIVATION_DELAY_MS = 2000;
 
+/** Every plan buys the same product — only the allowance differs — so this is said once. */
+const SHARED_FEATURES: DictKey[] = ["planFeatureFeedback", "planFeatureVoices", "planFeatureAnswers"];
+
+function meterColor(share: number): string {
+  if (share >= 1) return "bg-danger";
+  if (share >= 0.85) return "bg-warn";
+  return "bg-accent";
+}
+
 function Banner({ tone, children }: { tone: "ok" | "warn"; children: React.ReactNode }) {
   return (
     <div
       className={cn(
-        "mb-6 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13.5px] leading-5 animate-fade-up",
+        "mb-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13.5px] leading-5 animate-fade-up",
         tone === "ok" ? "border-accent/40 bg-accent-soft text-fg" : "border-warn/40 bg-warn-soft text-fg",
       )}
     >
@@ -32,7 +41,7 @@ function Banner({ tone, children }: { tone: "ok" | "warn"; children: React.React
       ) : (
         <CircleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
       )}
-      <span>{children}</span>
+      <span className="min-w-0">{children}</span>
     </div>
   );
 }
@@ -96,13 +105,14 @@ export function PlansScreen() {
 
   const current = billing ? getPlan(billing.plan) : null;
   const renewsAt = billing?.renewsAt ? Date.parse(billing.renewsAt) : null;
+  const share = billing ? usedShare(billing) : 0;
 
   return (
     <div className="scrollbar-thin h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-        <header className="mb-8 animate-fade-up">
-          <h1 className="font-serif text-[34px] leading-[1.15] tracking-tight sm:text-[40px]">{t("pricingTitle")}</h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-fg-muted text-pretty">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <header className="mb-6 animate-fade-up">
+          <h1 className="font-serif text-[30px] leading-[1.15] tracking-tight sm:text-[38px]">{t("pricingTitle")}</h1>
+          <p className="mt-2.5 max-w-2xl text-[14px] leading-6 text-fg-muted text-pretty sm:text-[15px]">
             {t("pricingSub", { tokens: formatTokens(TOKENS_PER_TEST.full) })}
           </p>
         </header>
@@ -122,26 +132,30 @@ export function PlansScreen() {
         {error && <Banner tone="warn">{error}</Banner>}
 
         {billing && current && (
-          <section className="mb-8 rounded-2xl border border-line bg-elevated p-5 shadow-soft animate-fade-up">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h2 className="text-sm font-medium">
-                {t("currentPlan")}: <span className="font-semibold">{t(PLAN_LABEL[current.id])}</span>
-              </h2>
-              <span className="text-[13px] tabular-nums text-fg-muted">
-                {t("usageOf", { used: formatTokens(billing.used), limit: formatTokens(billing.limit) })}
-              </span>
+          <section className="mb-7 rounded-2xl border border-line bg-elevated p-4 shadow-soft animate-fade-up sm:p-5">
+            <div className="flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{t("currentPlan")}</p>
+                <p className="mt-1 truncate text-[22px] font-semibold leading-none tracking-tight">
+                  {t(PLAN_LABEL[current.id])}
+                </p>
+              </div>
+              <p className="shrink-0 text-right text-[22px] font-semibold leading-none tracking-tight tabular-nums">
+                {formatTokens(billing.remaining)}
+                <span className="ml-1.5 text-[12.5px] font-normal text-fg-subtle">{t("remainingShort")}</span>
+              </p>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+
+            <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-muted">
               <div
-                className={cn(
-                  "h-full rounded-full transition-[width] duration-500",
-                  usedShare(billing) >= 1 ? "bg-danger" : usedShare(billing) >= 0.85 ? "bg-warn" : "bg-accent",
-                )}
-                style={{ width: `${Math.min(100, Math.round(usedShare(billing) * 100))}%` }}
+                className={cn("h-full rounded-full transition-[width] duration-500", meterColor(share))}
+                style={{ width: `${Math.max(share > 0 ? 2 : 0, Math.min(100, Math.round(share * 100)))}%` }}
               />
             </div>
-            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[13px] text-fg-subtle">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+              <p className="text-[12.5px] text-fg-subtle">
+                {t("usageOf", { used: formatTokens(billing.used), limit: formatTokens(billing.limit) })}
+                {" · "}
                 {renewsAt ? t("usageResets", { date: formatDay(renewsAt, lang) }) : t("usageNoReset")}
               </p>
               {billing.manageable && (
@@ -152,7 +166,7 @@ export function PlansScreen() {
                     setBusy("portal");
                     void post("/api/billing/portal");
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:border-line-strong hover:bg-hover disabled:opacity-60"
+                  className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-full border border-line px-4 text-[13.5px] font-medium transition-colors hover:border-line-strong hover:bg-hover disabled:opacity-60 sm:w-auto"
                 >
                   {busy === "portal" ? <Spinner className="size-3.5" /> : <ExternalLink className="size-3.5" />}
                   {t("managePlan")}
@@ -170,7 +184,7 @@ export function PlansScreen() {
               current={billing?.plan === plan.id}
               busy={busy === plan.id}
               disabled={busy !== null || !billing?.checkoutEnabled}
-              delay={index * 60}
+              delay={index * 50}
               onChoose={() => {
                 setBusy(plan.id);
                 void post("/api/billing/checkout", { plan: plan.id });
@@ -179,11 +193,18 @@ export function PlansScreen() {
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs text-fg-subtle">
-          {t("planTestsLine", { full: approxTests(getPlan("starter")), quick: approxTests(getPlan("starter"), "quick") })}
-          {" — "}
-          {t("freePlanNote")}
-        </p>
+        {/* Said once instead of four times: the plans differ only in how many tests they buy. */}
+        <section className="mt-5 rounded-2xl border border-line bg-elevated/50 p-4 animate-fade-up sm:p-5">
+          <h2 className="text-[13px] font-medium text-fg-muted">{t("planIncludes")}</h2>
+          <ul className="mt-3 grid gap-2.5 text-[13.5px] leading-5 sm:grid-cols-3">
+            {SHARED_FEATURES.map((key) => (
+              <li key={key} className="flex gap-2">
+                <Check className="mt-0.5 size-3.5 shrink-0 text-accent" strokeWidth={3} />
+                <span>{t(key)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </div>
   );
@@ -207,60 +228,58 @@ function PlanCard({
   const { t } = useI18n();
   const name = t(PLAN_LABEL[plan.id]);
   const free = plan.priceUsd === 0;
+  const tests = approxTests(plan);
 
   return (
     <section
       className={cn(
-        "flex flex-col rounded-2xl border p-5 animate-fade-up",
-        plan.featured ? "border-fg bg-elevated shadow-soft" : "border-line bg-elevated/60",
+        "flex flex-col rounded-2xl border p-4 animate-fade-up",
+        current
+          ? "border-fg bg-elevated shadow-soft"
+          : plan.featured
+            ? "border-line-strong bg-elevated"
+            : "border-line bg-elevated/60",
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[15px] font-semibold">{name}</h3>
         {current && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">{t("currentPlan")}</span>
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+            {t("currentPlan")}
+          </span>
         )}
       </div>
-      <p className="mt-3 flex items-baseline gap-1">
-        <span className="text-[28px] font-semibold tracking-tight tabular-nums">${plan.priceUsd}</span>
+
+      <p className="mt-2 flex items-baseline gap-1">
+        <span className="text-[26px] font-semibold leading-none tracking-tight tabular-nums">${plan.priceUsd}</span>
         {!free && <span className="text-[13px] text-fg-subtle">{t("perMonth")}</span>}
       </p>
-      <p className="mt-2 text-[13px] text-fg-muted">
+
+      <p className="mt-2.5 text-[13px] text-fg-muted">
         {t(free ? "planTokensOnce" : "planTokensLine", { amount: formatTokens(plan.tokens) })}
       </p>
+      <p className="mt-0.5 text-[13px] font-medium">
+        {t(tests === 1 ? "planTestsShortOnce" : "planTestsShort", { count: tests })}
+      </p>
 
-      <ul className="mt-4 space-y-2 text-[13px] leading-5 text-fg-muted">
-        {(
-          [
-            t("planTestsLine", { full: approxTests(plan), quick: approxTests(plan, "quick") }),
-            t("planFeatureFeedback"),
-            t("planFeatureVoices"),
-            t("planFeatureAnswers"),
-          ] as const
-        ).map((feature) => (
-          <li key={feature} className="flex gap-2">
-            <Check className="mt-0.5 size-3.5 shrink-0 text-accent" strokeWidth={3} />
-            <span>{feature}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-5 flex-1" />
+      <div className="mt-4 flex-1" />
       {free ? (
-        <p className="text-[12px] text-fg-subtle">{t("freePlanNote")}</p>
+        <p className="text-[12px] leading-4 text-fg-subtle">{t("freePlanNote")}</p>
       ) : (
         <button
           type="button"
           disabled={disabled || current}
           onClick={onChoose}
           className={cn(
-            "inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-            plan.featured ? "bg-primary text-primary-fg" : "border border-line hover:border-line-strong hover:bg-hover",
+            "inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+            plan.featured && !current
+              ? "bg-primary text-primary-fg hover:opacity-90"
+              : "border border-line hover:border-line-strong hover:bg-hover",
           )}
         >
           {busy && <Spinner className="size-3.5" />}
-          {current ? t("currentPlan") : t("choosePlan", { plan: name })}
+          {current ? t("currentPlan") : t("choose")}
         </button>
       )}
     </section>

@@ -48,10 +48,12 @@ export function SetupScreen({
 
   return (
     <div className="scrollbar-thin h-full overflow-y-auto">
-      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-6">
-        <header className="mb-9 text-center animate-fade-up">
-          <h1 className="font-serif text-[40px] leading-[1.1] tracking-tight text-balance sm:text-5xl">{t("greeting")}</h1>
-          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-6 text-fg-muted text-pretty">{t("greetingSub")}</p>
+      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center px-4 py-6 sm:px-6 sm:py-10">
+        <header className="mb-7 text-center animate-fade-up sm:mb-9">
+          <h1 className="font-serif text-[28px] leading-[1.15] tracking-tight text-balance sm:text-5xl">{t("greeting")}</h1>
+          <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-fg-muted text-pretty sm:mt-4 sm:text-[15px]">
+            {t("greetingSub")}
+          </p>
         </header>
 
         <section className="animate-fade-up [animation-delay:60ms]">
@@ -59,7 +61,7 @@ export function SetupScreen({
             <h2 className="text-sm font-medium">{t("chooseExaminer")}</h2>
             {previewError && <span className="text-right text-xs text-danger">{previewError}</span>}
           </div>
-          <div role="radiogroup" aria-label={t("chooseExaminer")} className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <div role="radiogroup" aria-label={t("chooseExaminer")} className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
             {VOICES.map((voice) => {
               const selected = voice.id === setup.voice;
               const playing = speech.playingKey === voice.id;
@@ -72,7 +74,7 @@ export function SetupScreen({
                     aria-checked={selected}
                     onClick={() => onChange({ voice: voice.id })}
                     className={cn(
-                      "flex w-full flex-col items-start gap-3 rounded-2xl border p-3.5 text-left transition-all",
+                      "flex w-full flex-col items-start gap-2.5 rounded-2xl border p-3 text-left transition-all sm:gap-3 sm:p-3.5",
                       selected
                         ? "border-fg bg-elevated shadow-soft"
                         : "border-line bg-elevated/60 hover:border-line-strong hover:bg-elevated",
@@ -100,7 +102,7 @@ export function SetupScreen({
                     aria-label={`${t(playing ? "stop" : "listen")}: ${voice.name}`}
                     title={t(playing ? "stop" : "listen")}
                     className={cn(
-                      "absolute right-2.5 top-2.5 inline-flex size-8 items-center justify-center rounded-full border transition-colors",
+                      "absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full border transition-colors sm:right-2.5 sm:top-2.5 sm:size-8",
                       playing
                         ? "border-accent bg-accent text-accent-fg"
                         : "border-line bg-bg text-fg-muted hover:border-line-strong hover:text-fg",
@@ -141,7 +143,7 @@ export function SetupScreen({
           </div>
         </section>
 
-        <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-col items-center gap-3 bg-gradient-to-t from-bg from-60% to-transparent px-4 pb-4 pt-6 animate-fade-up [animation-delay:180ms] sm:static sm:mx-0 sm:bg-none sm:p-0">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex flex-col items-center gap-2 border-t border-line bg-bg/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm animate-fade-up [animation-delay:180ms] sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
           {outOfTokens ? (
             <LimitCard className="w-full" />
           ) : (
