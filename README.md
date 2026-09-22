@@ -113,6 +113,9 @@ npx tsx scripts/check-billing.ts
 
 ### Настройка Stripe
 
+Пошаговый гайд — от создания цен до первого боевого платежа, с локальной проверкой и
+разбором типичных ошибок — в [`docs/stripe.md`](docs/stripe.md). Коротко:
+
 1. Создайте в [Stripe Dashboard](https://dashboard.stripe.com) три recurring-цены (monthly):
    $20, $60 и $100 — и впишите их price id в `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`,
    `STRIPE_PRICE_MAX`.
