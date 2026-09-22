@@ -56,8 +56,17 @@ export function SsoCallback({ next }: { next: string }) {
         const sessionId = signIn.existingSession?.sessionId ?? signUp.existingSession?.sessionId;
         if (sessionId) return void (await clerk.setActive({ session: sessionId, navigate }));
       }
+      // Usually the Clerk dashboard requires fields Google doesn't provide (phone, username, password).
+      console.warn("[auth] Google sign-in could not finish:", {
+        signIn: signInStatus(),
+        signUp: signUpStatus(),
+        missingFields: signUp.missingFields,
+      });
       setFailed(true);
-    })().catch(() => setFailed(true));
+    })().catch((error) => {
+      console.error("[auth] Google sign-in failed:", error);
+      setFailed(true);
+    });
   }, [isLoaded, clerk, signIn, signUp, next, router]);
 
   return (
