@@ -2,11 +2,12 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/nextjs/types";
-import { ChevronsUpDown, Gauge, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, Download, Gauge, LogOut, Monitor, Moon, Share, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Lang } from "@/lib/exam/types";
 import { useI18n } from "@/lib/i18n";
+import { promptInstall, useInstallMethod } from "@/lib/pwa";
 import { setThemePref, useThemePref, type ThemePref } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useExamGuard } from "./exam-guard";
@@ -35,6 +36,43 @@ function Avatar({ name, className }: { name: string; className?: string }) {
     >
       {initials(name)}
     </span>
+  );
+}
+
+const menuItemClass =
+  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors hover:bg-hover";
+
+/** The browser's own install dialog where it has one; on iPhone and iPad, how to do it in Safari. */
+function InstallItem({ onPrompt }: { onPrompt: () => void }) {
+  const { t } = useI18n();
+  const method = useInstallMethod();
+  const [hintShown, setHintShown] = useState(false);
+  if (!method) return null;
+
+  const [beforeIcon, afterIcon] = t("installIosHint").split("{share}");
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={method === "ios" ? hintShown : undefined}
+        onClick={() => {
+          if (method === "ios") return setHintShown((shown) => !shown);
+          onPrompt();
+          promptInstall();
+        }}
+        className={menuItemClass}
+      >
+        <Download className="size-4 text-fg-muted" />
+        {t("installApp")}
+      </button>
+      {method === "ios" && hintShown && (
+        <p className="px-2.5 pb-2 text-xs leading-5 text-fg-muted">
+          {beforeIcon}
+          <Share aria-hidden className="inline size-3.5 align-[-2px]" />
+          {afterIcon}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -159,16 +197,13 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
               guard.setActive(false);
               setOpen(false);
             }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors hover:bg-hover"
+            className={menuItemClass}
           >
             <Gauge className="size-4 text-fg-muted" />
             {t("viewPlans")}
           </Link>
-          <button
-            type="button"
-            onClick={logOut}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors hover:bg-hover"
-          >
+          <InstallItem onPrompt={() => setOpen(false)} />
+          <button type="button" onClick={logOut} className={menuItemClass}>
             <LogOut className="size-4 text-fg-muted" />
             {t("logOut")}
           </button>

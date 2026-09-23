@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { THEME_KEY } from "./constants";
+import { THEME_COLOR_ID, THEME_COLORS, THEME_KEY } from "./constants";
 
 export type ThemePref = "light" | "dark" | "system";
 
@@ -10,6 +10,18 @@ const listeners = new Set<() => void>();
 function resolve(pref: ThemePref): "light" | "dark" {
   if (pref !== "system") return pref;
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/** The address bar, and an installed app's status or title bar, take the page's colour. */
+function paintBrowserChrome(theme: "light" | "dark") {
+  let meta = document.getElementById(THEME_COLOR_ID) as HTMLMetaElement | null;
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.id = THEME_COLOR_ID;
+    meta.name = "theme-color";
+    document.head.prepend(meta);
+  }
+  meta.content = THEME_COLORS[theme];
 }
 
 function apply(pref: ThemePref) {
@@ -22,6 +34,7 @@ function apply(pref: ThemePref) {
   root.setAttribute("data-theme", theme);
   root.setAttribute("data-theme-pref", pref);
   root.style.colorScheme = theme;
+  paintBrowserChrome(theme);
   void getComputedStyle(root).color;
   requestAnimationFrame(() => freeze.remove());
   for (const listener of listeners) listener();

@@ -15,6 +15,8 @@ const en = {
   closeSidebar: "Close sidebar",
   accountMenu: "Account menu",
   logOut: "Log out",
+  installApp: "Install app",
+  installIosHint: "In Safari, tap {share} Share, then “Add to Home Screen”.",
 
   greeting: "Ready for your IELTS Speaking test?",
   greetingSub:
@@ -248,6 +250,8 @@ const uz: Dict = {
   closeSidebar: "Yon panelni yopish",
   accountMenu: "Hisob menyusi",
   logOut: "Chiqish",
+  installApp: "Ilovani o‘rnatish",
+  installIosHint: "Safari’da {share} «Share» tugmasini bosing va «Add to Home Screen» bandini tanlang.",
 
   greeting: "IELTS Speaking imtihoniga tayyormisiz?",
   greetingSub:
